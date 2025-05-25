@@ -1,0 +1,31 @@
+on:
+  push:
+    tags:
+      - 'api-*'
+      - 'admin-*'
+      - 'landing-*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      WORKDIR: ${{ github.repository }}
+
+    steps:
+      - name: downcase REPO
+        run: |
+          echo "WORKDIR=${WORKDIR,,}" >>${GITHUB_ENV}
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p ~/${{ env.WORKDIR }} && cd ~/${{ env.WORKDIR }}
+            git pull origin master
+            docker compose -f docker/compose.yml pull
+            docker compose -f docker/compose.yml up -d --remove-orphans
+
+~                          

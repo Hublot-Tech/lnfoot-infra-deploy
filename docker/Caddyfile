@@ -3,6 +3,16 @@ lnfoot-api.hublots.co {
   reverse_proxy api:8080
 }
 
+# Spring boot
+lnfoot-admin.hublots.co {
+  reverse_proxy admin:3000
+}
+
+# Spring boot
+lnfoot.hublots.co {
+  reverse_proxy landing:3000
+}
+
 # Keycloak
 lnfoot-auth.hublots.co {
   reverse_proxy keycloak:8080

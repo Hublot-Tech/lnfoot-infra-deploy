@@ -1,12 +1,31 @@
 services:
   api:
     image: ghcr.io/hublot-tech/ln-foot-api:latest
+    restart: unless-stopped
     env_file:
       - .env
     depends_on:
       - postgres
     networks:
       - lnfoot
+  
+  admin:
+    image: ghcr.io/hublots-tech/admin-ln-foot:latest
+    restart: unless-stopped
+    command: sh -c "yarn db:migrate && node server.js"
+    env_file:
+      - "admin/config.env"
+    networks:
+      - lnfoot
+
+  landing:
+    image: ghcr.io/hublots-tech/ln-foot:latest
+    restart: unless-stopped
+    networks:
+      - lnfoot
+    environment:
+      NODE_ENV: production
+      NEXT_API_BASE_URL: https://lnfoot-admin.hublots.co 
 
   postgres:
     image: postgres:alpine
@@ -30,7 +49,7 @@ services:
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
     env_file:
-      - "keycloak/keycloak.env"
+      - "keycloak/config.env"
     networks:
       - lnfoot
     command:
@@ -47,7 +66,7 @@ services:
     image: minio/minio
     command: server /data --console-address ":9001"
     env_file:
-      - "minio/minio.env"
+      - "minio/config.env"
     volumes:
       - minio-data:/data
     networks:
