@@ -12,7 +12,7 @@ services:
   admin:
     image: ghcr.io/hublots-tech/admin-ln-foot:latest
     restart: unless-stopped
-    command: sh -c "yarn db:migrate && node server.js"
+    command: sh -c "npx drizzle-kit migrate && node server.js"
     env_file:
       - "admin/config.env"
     networks:
