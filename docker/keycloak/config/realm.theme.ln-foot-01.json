@@ -9,6 +9,12 @@
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": false,
   "enabled": true,
+  "supportedLocales": [
+    "en",
+    "fr"
+  ],
+  "defaultLocale": "en",
+  "internationalizationEnabled": true,
   "defaultRoles": [
     "user"
   ],

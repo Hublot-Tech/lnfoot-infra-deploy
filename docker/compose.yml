@@ -4,52 +4,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    depends_on:
-      - postgres
-    networks:
-      - lnfoot
-  
-  admin:
-    image: ghcr.io/hublots-tech/admin-ln-foot:latest
-    restart: unless-stopped
-    command: sh -c "npx drizzle-kit migrate && node server.js"
-    env_file:
-      - "admin/config.env"
-    networks:
-      - lnfoot
-
-  landing:
-    image: ghcr.io/hublots-tech/ln-foot:latest
-    restart: unless-stopped
-    networks:
-      - lnfoot
-    environment:
-      NODE_ENV: production
-      NEXT_API_BASE_URL: https://lnfoot-admin.hublots.co 
-
-  postgres:
-    image: postgres:alpine
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - lnfoot
-
-  adminer:
-    image: adminer
-    restart: unless-stopped
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
     networks:
       - lnfoot
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
     env_file:
-      - "keycloak/config.env"
+      - .env
     networks:
       - lnfoot
     command:
@@ -66,7 +27,7 @@ services:
     image: minio/minio
     command: server /data --console-address ":9001"
     env_file:
-      - "minio/config.env"
+      - .env
     volumes:
       - minio-data:/data
     networks:

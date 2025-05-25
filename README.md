@@ -4,8 +4,6 @@
 
 This repository automates the deployment of the entire LN Foot platform, including:
 
-- 🧩 Landing page
-- ⚙️ Admin platform
 - 🔌 API backend
 - 🛡 Keycloak (Identity provider)
 - ☁️ MinIO (Object storage)
@@ -22,11 +20,8 @@ docker/
 ├── compose.yml                   # Main Docker Compose file
 ├── keycloak/
 │   ├── config/
-│   │   ├── realm.theme.ln-foot-01.json
-│   └── config.env                # Keycloak environment variables
-├── minio/
-│   └── config.env                # MinIO environment variables
-
+│      ├── realm.theme.ln-foot-01.json
+├── .env # environment variables
 ````
 
 ---
@@ -37,8 +32,6 @@ Deployment is automated via GitHub Actions and triggered when version tags are p
 
 | Service | Example Repo Name      | Tag Format           | Example Tag       |
 |---------|------------------------|----------------------|-------------------|
-| Landing | `lnfoot-landing`       | `landing-vX.Y.Z`     | `landing-v1.0.0`  |
-| Admin   | `lnfoot-admin`         | `admin-vX.Y.Z`       | `admin-v2.1.0`    |
 | API     | `lnfoot-api`           | `api-vX.Y.Z`         | `api-v0.9.5`      |
 
 Upon receiving a tag:
@@ -74,10 +67,7 @@ Set the following secrets in your **`infra-deploy` repo → Settings → Secrets
 
 ## 📜 Docker Compose Environment
 
-- **Keycloak** uses its own `.env` file: `docker/keycloak/config.env`
-- **MinIO** uses: `docker/minio/config.env`
-- Database URLs and service credentials are managed through environment files and/or Docker secrets (recommended).
-
+- **Keycloak** uses its own `docker/.env` file: `.env`
 ---
 
 ## 🛠 Local Development
@@ -101,7 +91,7 @@ Make sure to:
 To add a new service to the infra:
 
 1. Update `docker/compose.yml`
-2. Add any necessary `.env` files under `docker/<service>/config.env`
+2. Add any necessary `.env` files under `docker/.env`
 3. Update GitHub Actions workflows (if needed)
 
 ---
