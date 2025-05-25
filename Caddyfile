@@ -1,0 +1,25 @@
+# Spring boot
+lnfoot-api.hublots.co {
+  reverse_proxy api:8080
+}
+
+# Keycloak
+lnfoot-auth.hublots.co {
+  reverse_proxy keycloak:8080
+}
+
+# Minio Console
+lnfoot-imgui.hublots.co {
+  reverse_proxy minio:9001
+}
+
+# Minio API
+lnfoot-img.hublots.co {
+  reverse_proxy minio:9000
+}
+
+# Adminer
+lnfoot-adminer.hublots.co {
+  reverse_proxy adminer:8080
+}
+

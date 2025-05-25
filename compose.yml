@@ -1,0 +1,72 @@
+services:
+  api:
+    image: ghcr.io/hublot-tech/ln-foot-api:latest
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    networks:
+      - lnfoot
+
+  postgres:
+    image: postgres:alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - lnfoot
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - lnfoot
+
+  keycloak:
+    image: ghcr.io/marcjazz/keycloak-auth-theme:latest
+    env_file:
+      - "keycloak/keycloak.env"
+    networks:
+      - lnfoot
+    command:
+      - "start"
+      - "--import-realm"
+      - "--spi-theme-static-max-age=-1"
+      - "--spi-theme-cache-themes=false"
+      - "--spi-theme-cache-templates=false"
+    restart: unless-stopped
+    volumes:
+      - ./keycloak/config/:/opt/keycloak/data/import/:ro
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    env_file:
+      - "minio/minio.env"
+    volumes:
+      - minio-data:/data
+    networks:
+      - lnfoot
+
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - lnfoot
+
+volumes:
+  pgdata:
+  minio-data:
+
+networks:
+  lnfoot:
+    driver: bridge
