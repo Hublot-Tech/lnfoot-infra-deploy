@@ -2,8 +2,6 @@ services:
   api:
     image: ghcr.io/hublot-tech/ln-foot-api:latest
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     env_file:
       - .env
     networks:
@@ -18,8 +16,6 @@ services:
   postgres:
     image: postgres:alpine
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     volumes:
       - keycloak-db:/var/lib/postgresql/data
     environment:
@@ -33,12 +29,10 @@ services:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
     env_file:
       - keycloak/.env
-    ports:
-      - "8081:8080"
     networks:
       - lnfoot
     command:
-      - "start-dev"
+      - "start"
       - "--import-realm"
       - "--spi-theme-static-max-age=-1"
       - "--spi-theme-cache-themes=false"
@@ -49,11 +43,8 @@ services:
 
   minio:
     image: minio/minio
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     command: server /data --console-address ":9001"
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -67,6 +58,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - lnfoot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   keycloak-db:
