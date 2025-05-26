@@ -1,8 +1,8 @@
 {
   "id": "ln-foot-01",
   "realm": "lnfoot",
-  "displayName": "Luvnation Sport",
-  "displayNameHtml": "<b>Luvnation Sport</b>",
+  "displayName": "Luvnation Shop",
+  "displayNameHtml": "<b>Luvnation Shop</b>",
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
   "rememberMe": true,

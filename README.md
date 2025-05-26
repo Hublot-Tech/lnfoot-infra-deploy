@@ -8,6 +8,7 @@ This repository automates the deployment of the entire LN Foot platform, includi
 - 🛡 Keycloak (Identity provider)
 - ☁️ MinIO (Object storage)
 - 🌐 Caddy (Reverse proxy + HTTPS)
+- Vercel Fontends (lnfoot.vercel.app, admin-ln-foot.vercel.app)
 
 ---
 

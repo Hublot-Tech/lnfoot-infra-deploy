@@ -6,15 +6,32 @@ services:
       - .env
     networks:
       - lnfoot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/categories"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:alpine
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${KC_DB_URL_DATABASE}
+      POSTGRES_USER: ${KC_DB_USERNAME}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+    networks:
+      - lnfoot
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
     env_file:
-      - .env
+      - keycloak/.env
     networks:
       - lnfoot
     command:
-      - "start"
+      - "start-dev"
       - "--import-realm"
       - "--spi-theme-static-max-age=-1"
       - "--spi-theme-cache-themes=false"
@@ -26,12 +43,19 @@ services:
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
-    env_file:
-      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio-data:/data
     networks:
       - lnfoot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   caddy:
     image: caddy:latest
@@ -42,9 +66,15 @@ services:
       - "443:443"
     networks:
       - lnfoot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  pgdata:
+  keycloak-db:
   minio-data:
 
 networks:
