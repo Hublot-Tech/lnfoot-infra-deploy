@@ -86,11 +86,12 @@
       "enabled": true,
       "publicClient": true,
       "redirectUris": [
-        "*",
+        "https://admin.ln-foot.com/*",
         "com.lnfoot://*"
       ],
       "webOrigins": [
-        "*"
+        "https://admin.ln-foot.com/*",
+        "https://api.ln-foot.com/*"
       ],
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
