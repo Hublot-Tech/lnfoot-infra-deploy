@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/hublot-tech/ln-foot-api:latest
+    image: ghcr.io/luvnationdev/ln-foot-api:latest
     restart: unless-stopped
     ports:
       - "8080:8080"
