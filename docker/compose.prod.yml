@@ -42,7 +42,7 @@ services:
       - ./keycloak/config/:/opt/keycloak/data/import/:ro
 
   minio:
-    image: minio/minio
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
     restart: unless-stopped
     environment:
