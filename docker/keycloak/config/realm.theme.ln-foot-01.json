@@ -61,7 +61,7 @@
   ],
   "users": [
     {
-      "email": "${KC_BOOTSTRAP_ADMIN_USERNAME}@hublots.co",
+      "email": "${KC_BOOTSTRAP_ADMIN_USERNAME}",
       "username": "${KC_BOOTSTRAP_ADMIN_USERNAME}",
       "firstName": "LNF Hublots",
       "lastName": "Admin",
