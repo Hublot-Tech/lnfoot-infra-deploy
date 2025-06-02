@@ -54,11 +54,37 @@ services:
       - "9000:9000"
       - "9001:9001"
     command: server /data --console-address ":9001"
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      # JSON policy for the app client (read/write access to the specific bucket)
+      APP_CLIENT_POLICY_NAME: "app-client-rw-policy"
+      APP_CLIENT_POLICY_JSON: |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:ListBucket",
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:DeleteObject"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::${MINIO_BUCKET_NAME}",
+                        "arn:aws:s3:::${MINIO_BUCKET_NAME}/*"
+                    ]
+                }
+            ]
+        }
     volumes:
       - minio-data:/data
+      - ./minio-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
     networks:
       - lnfoot
     healthcheck:
