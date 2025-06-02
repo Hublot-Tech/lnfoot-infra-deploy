@@ -59,7 +59,7 @@ services:
       - minio-data:/data
       - ./minio/entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
       # Mount the policy file from your host into the container
-      - ./minio/app-client-policy.json:/tmp/app_client_policy.json
+      - ./minio/app-client-policy.json:/app_client_policy.json
     networks:
       - lnfoot
     healthcheck:
