@@ -32,7 +32,6 @@ echo "MinIO alias 'myminio' set."
 
 # 4. Create the custom policy for the app client (read/write)
 echo "Creating custom policy '${APP_CLIENT_POLICY_NAME}' for app client..."
-echo "${APP_CLIENT_POLICY_JSON}" >/tmp/app_client_policy.json
 if ! mc admin policy info myminio "${APP_CLIENT_POLICY_NAME}" >/dev/null 2>&1; then
     mc admin policy create myminio "${APP_CLIENT_POLICY_NAME}" /app_client_policy.json
     echo "Policy '${APP_CLIENT_POLICY_NAME}' added."
