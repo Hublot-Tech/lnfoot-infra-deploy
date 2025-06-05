@@ -1,0 +1,59 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: main-ingress
+  annotations:
+    # Annotations for specific Ingress controller can be added here if known
+    # e.g., for Nginx:
+    # kubernetes.io/ingress.class: "nginx"
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod" # If using cert-manager
+spec:
+  rules:
+  - host: lnfoot-api.hublots.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 8080
+  - host: lnfoot-auth.hublots.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak-svc
+            port:
+              number: 8080
+  - host: lnfoot-imgui.hublots.co # Minio Console
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              number: 9001 # Port name 'console' (targetPort 9001)
+  - host: lnfoot-img.hublots.co # Minio API
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              number: 9000 # Port name 'api' (targetPort 9000)
+  # tls: # Optional: Define TLS settings if not handled by a default cert-manager ClusterIssuer
+  # - hosts:
+  #   - lnfoot-api.hublots.co
+  #   - lnfoot-auth.hublots.co
+  #   - lnfoot-imgui.hublots.co
+  #   - lnfoot-img.hublots.co
+  #   secretName: hublots-co-tls # Name of the secret containing TLS cert and key
