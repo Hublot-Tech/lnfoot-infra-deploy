@@ -1,0 +1,260 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+data:
+  realm.json: |
+    {
+      "id": "ln-foot-01",
+      "realm": "lnfoot",
+      "displayName": "Luvnation Shop",
+      "displayNameHtml": "<b>Luvnation Shop</b>",
+      "registrationAllowed": true,
+      "registrationEmailAsUsername": true,
+      "rememberMe": true,
+      "loginWithEmailAllowed": true,
+      "resetPasswordAllowed": false,
+      "enabled": true,
+      "supportedLocales": [
+        "en",
+        "fr"
+      ],
+      "defaultLocale": "en",
+      "internationalizationEnabled": true,
+      "defaultRoles": [
+        "user"
+      ],
+      "loginTheme": "ln-foot-01",
+      "roles": {
+        "realm": [
+          {
+            "name": "admin",
+            "description": "Administrator role with full access"
+          },
+          {
+            "name": "user",
+            "description": "Regular user role with limited access"
+          },
+          {
+            "name": "default-roles-lnfoot",
+            "composite": true,
+            "composites": {
+              "realm": [
+                "user"
+              ]
+            },
+            "description": "Role automatically assigned to all new users"
+          }
+        ]
+      },
+      "identityProviders": [
+        {
+          "alias": "google",
+          "displayName": "Google",
+          "providerId": "google",
+          "enabled": true,
+          "config": {
+            "clientId": "google-client-id",
+            "clientSecret": "google-client-secret",
+            "defaultProvider": true,
+            "hideOnLoginPage": false,
+            "trustEmail": true,
+            "useUserInfoProvider": true,
+            "authenticateByDefault": true,
+            "defaultRole": "user"
+          }
+        }
+      ],
+      "users": [
+        {
+          "email": "${KC_BOOTSTRAP_ADMIN_USERNAME}",
+          "username": "${KC_BOOTSTRAP_ADMIN_USERNAME}",
+          "firstName": "LNF Hublots",
+          "lastName": "Admin",
+          "enabled": true,
+          "emailVerified": true,
+          "credentials": [
+            {
+              "temporary": false,
+              "type": "password",
+              "value": "${KC_BOOTSTRAP_ADMIN_PASSWORD}"
+            }
+          ],
+          "realmRoles": [
+            "admin",
+            "user"
+          ]
+        }
+      ],
+      "clients": [
+        {
+          "clientId": "ln-foot-01",
+          "enabled": true,
+          "publicClient": true,
+          "redirectUris": [
+            "*",
+            "com.lnfoot://*"
+          ],
+          "webOrigins": [
+            "*"
+          ],
+          "protocol": "openid-connect",
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "authorizationServicesEnabled": false,
+          "fullScopeAllowed": true,
+          "attributes": {
+            "post.logout.redirect.uris": "+",
+            "access.token.lifespan": "3600"
+          }
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-secret
+data:
+  KC_BOOTSTRAP_ADMIN_USERNAME: YWRtaW4=
+  KC_BOOTSTRAP_ADMIN_PASSWORD: cGFzc3dvcmQ=
+  KC_HOSTNAME: bG9jYWxob3N0
+  KC_LOG_LEVEL: SU5GTw==
+  KC_REALM_NAME: bG4tZm9vdC0wMQ==
+  KC_DB: cG9zdGdyZXM=
+  KC_HOSTNAME_STRICT: dHJ1ZQ==
+  KC_PROXY: ZWRnZQ==
+  KC_HTTP_ENABLED: dHJ1ZQ==
+  KC_HTTPS_ENABLED: ZmFsc2U=
+  KEYCLOAK_PRODUCTION: ZmFsc2U=
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-svc
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      initContainers:
+        - name: import-realm
+          image: busybox
+          command: ['sh', '-c', 'cp /config/realm.json /import/realm.json && chmod 644 /import/realm.json']
+          volumeMounts:
+            - name: realm-config-volume
+              mountPath: /config
+              readOnly: true
+            - name: realm-import-volume
+              mountPath: /import
+      containers:
+        - name: keycloak
+          image: ghcr.io/marcjazz/keycloak-auth-theme:latest
+          command:
+            - 'start'
+            - '--import-realm'
+            - '--spi-theme-static-max-age=-1'
+            - '--spi-theme-cache-themes=false'
+            - '--spi-theme-cache-templates=false'
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: KC_DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_BOOTSTRAP_ADMIN_USERNAME
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_BOOTSTRAP_ADMIN_PASSWORD
+            - name: KC_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_HOSTNAME
+            - name: KC_LOG_LEVEL
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_LOG_LEVEL
+            - name: KC_REALM_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_REALM_NAME
+            - name: KC_DB
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_DB
+            - name: KC_HOSTNAME_STRICT
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_HOSTNAME_STRICT
+            - name: KC_PROXY
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_PROXY
+            - name: KC_HTTP_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_HTTP_ENABLED
+            - name: KC_HTTPS_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_HTTPS_ENABLED
+            - name: KEYCLOAK_PRODUCTION
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KEYCLOAK_PRODUCTION
+          volumeMounts:
+            - name: realm-import-volume
+              mountPath: /opt/keycloak/data/import/
+      volumes:
+        - name: realm-config-volume
+          configMap:
+            name: keycloak-realm-config
+        - name: realm-import-volume
+          emptyDir: {}
