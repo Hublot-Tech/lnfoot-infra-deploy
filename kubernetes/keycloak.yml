@@ -2,6 +2,12 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: keycloak-realm-config
+# data:
+#   realm.json: |
+#     { ... realm json ... }
+# Note: Consider externalizing this realm JSON into a separate, version-controlled file
+# or using a ConfigMap generator for better diffing, versioning, and maintainability,
+# especially as the realm configuration grows more complex.
 data:
   realm.json: |
     {
@@ -117,18 +123,20 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-secret
-data:
-  KC_BOOTSTRAP_ADMIN_USERNAME: YWRtaW4=
-  KC_BOOTSTRAP_ADMIN_PASSWORD: cGFzc3dvcmQ=
-  KC_HOSTNAME: bG9jYWxob3N0
-  KC_LOG_LEVEL: SU5GTw==
-  KC_REALM_NAME: bG4tZm9vdC0wMQ==
-  KC_DB: cG9zdGdyZXM=
-  KC_HOSTNAME_STRICT: dHJ1ZQ==
-  KC_PROXY: ZWRnZQ==
-  KC_HTTP_ENABLED: dHJ1ZQ==
-  KC_HTTPS_ENABLED: ZmFsc2U=
-  KEYCLOAK_PRODUCTION: ZmFsc2U=
+# data:
+#   KC_BOOTSTRAP_ADMIN_USERNAME: <base64_encoded_value>
+#   KC_BOOTSTRAP_ADMIN_PASSWORD: <base64_encoded_value>
+#   KC_HOSTNAME: <base64_encoded_value>
+#   KC_LOG_LEVEL: <base64_encoded_value>
+#   KC_REALM_NAME: <base64_encoded_value>
+#   KC_DB: <base64_encoded_value>
+#   KC_HOSTNAME_STRICT: <base64_encoded_value>
+#   KC_PROXY: <base64_encoded_value>
+#   KC_HTTP_ENABLED: <base64_encoded_value>
+#   KC_HTTPS_ENABLED: <base64_encoded_value>
+#   KEYCLOAK_PRODUCTION: <base64_encoded_value>
+# Note: This Secret should be created manually in the cluster or managed by an external secrets operator.
+# Expected keys: KC_BOOTSTRAP_ADMIN_USERNAME, KC_BOOTSTRAP_ADMIN_PASSWORD, KC_HOSTNAME, KC_LOG_LEVEL, KC_REALM_NAME, KC_DB, KC_HOSTNAME_STRICT, KC_PROXY, KC_HTTP_ENABLED, KC_HTTPS_ENABLED, KEYCLOAK_PRODUCTION.
 ---
 apiVersion: v1
 kind: Service
@@ -157,10 +165,32 @@ spec:
       labels:
         app: keycloak
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # Common UID for jboss/keycloak user
+        runAsGroup: 1000
+        fsGroup: 1000
+        # seccompProfile: { type: RuntimeDefault }
       initContainers:
         - name: import-realm
           image: busybox
           command: ['sh', '-c', 'cp /config/realm.json /import/realm.json && chmod 644 /import/realm.json']
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true # Busybox can run as non-root for these commands
+            runAsUser: 1000    # Using the same as keycloak for consistency
+            runAsGroup: 1000
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
           volumeMounts:
             - name: realm-config-volume
               mountPath: /config
@@ -170,6 +200,30 @@ spec:
       containers:
         - name: keycloak
           image: ghcr.io/marcjazz/keycloak-auth-theme:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            # readOnlyRootFilesystem: true # Keycloak may write to /opt/jboss or similar paths
+          resources:
+            requests:
+              memory: "256Mi" # Keycloak can be memory intensive
+              cpu: "250m"
+            limits:
+              memory: "1Gi"   # Increased limit for Keycloak
+              cpu: "1"        # Increased CPU limit for Keycloak
+          # Note: For HA, Keycloak needs clustering configuration & replicas > 1 (possibly StatefulSet).
+          startupProbe:
+            httpGet:
+              # Adjust /auth if Keycloak's context path is different
+              path: /auth/realms/master
+              port: 8080
+            failureThreshold: 60  # 60 * 10s = 600s = 10 minutes
+            periodSeconds: 10
+          # Liveness and Readiness probes could be added here too, similar to startupProbe
+          # or using a different endpoint if available after startup.
+          # For now, relying on startupProbe to ensure it eventually starts.
           command:
             - 'start'
             - '--import-realm'

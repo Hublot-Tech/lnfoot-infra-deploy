@@ -6,6 +6,8 @@ data:
   entrypoint.sh: |
     #!/bin/sh
     set -e # Exit on first error
+    # TODO: Consider adding signal traps (e.g., trap "echo 'Caught SIGTERM, shutting down MinIO...' && kill $MINIO_PID && wait $MINIO_PID" SIGTERM SIGINT)
+    # to ensure a more graceful shutdown of the MinIO server process when the pod is terminated.
 
     # --- 1. Start MinIO server in the background using the passed arguments ---
     echo "Starting MinIO server in background with arguments: '$@'"
@@ -97,23 +99,27 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: minio-secret
-data:
-  MINIO_ROOT_USER: bWluaW9hZG1pbg==
-  MINIO_ROOT_PASSWORD: bWluaW9hZG1pbnBhc3N3b3Jk
-  APP_CLIENT_POLICY_NAME: YXBwLWNsaWVudC1ydy1wb2xpY3k=
-  APP_CLIENT_ACCESS_KEY: YXBwY2xpZW50dXNlcg==
-  APP_CLIENT_SECRET_KEY: YXBwY2xpZW50cGFzc3dvcmQ=
+# data:
+#   MINIO_ROOT_USER: <base64_encoded_value>
+#   MINIO_ROOT_PASSWORD: <base64_encoded_value>
+#   APP_CLIENT_POLICY_NAME: <base64_encoded_value> # e.g., YXBwLWNsaWVudC1ydy1wb2xpY3k= for app-client-rw-policy
+#   APP_CLIENT_ACCESS_KEY: <base64_encoded_value>
+#   APP_CLIENT_SECRET_KEY: <base64_encoded_value>
+# Note: This Secret should be created manually in the cluster or managed by an external secrets operator.
+# Expected keys: MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, APP_CLIENT_POLICY_NAME, APP_CLIENT_ACCESS_KEY, APP_CLIENT_SECRET_KEY.
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: minio-pvc
+  # namespace: lnfoot-app # If namespace is applied
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi # Adjusted from 10Gi for now, can be increased
+      storage: 10Gi # Increased size
+  storageClassName: standard # Added storage class
 ---
 apiVersion: v1
 kind: Service
@@ -147,9 +153,28 @@ spec:
       labels:
         app: minio
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        # seccompProfile: { type: RuntimeDefault }
       containers:
         - name: minio
           image: minio/minio
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true # Minio should only write to /data volume
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
           command: ["/bin/sh", "/config/entrypoint.sh"]
           args: ["server", "/data", "--console-address", ":9001"]
           ports:
@@ -184,6 +209,13 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
+          # Note: For HA, Minio should be deployed in distributed mode (typically a StatefulSet).
+          startupProbe:
+            httpGet:
+              path: /minio/health/live # Or /minio/health/ready
+              port: 9000 # api port
+            failureThreshold: 12 # 12 * 5s = 60s
+            periodSeconds: 5
       volumes:
         - name: minio-storage
           persistentVolumeClaim:

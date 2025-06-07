@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-all-ingress # Changed to default-deny-all-ingress for clarity
-  # namespace: lnfoot-app # Uncomment and set if deploying to a specific namespace
+  name: default-deny-all-ingress
+  namespace: lnfoot-app
 spec:
   podSelector: {} # Selects all pods in the namespace
   policyTypes:
@@ -11,8 +11,19 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: default-deny-all-egress
+  namespace: lnfoot-app
+spec:
+  podSelector: {} # Selects all pods
+  policyTypes:
+  - Egress
+  egress: [] # Deny all egress traffic by default
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: allow-postgres-access
-  # namespace: lnfoot-app
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -35,7 +46,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-keycloak-access
-  # namespace: lnfoot-app
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -46,18 +57,14 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: api # API needs to talk to Keycloak for token validation etc.
-    # Assuming Ingress controller will forward traffic to Keycloak.
-    # This rule allows traffic from any pod in any namespace.
-    # TODO: Restrict this to only allow traffic from the Ingress controller pods.
-    # Example for Nginx Ingress (if in 'ingress-nginx' namespace with specific labels):
-    # - namespaceSelector:
-    #     matchLabels:
-    #       kubernetes.io/metadata.name: ingress-nginx
-    #   podSelector:
-    #     matchLabels:
-    #       app.kubernetes.io/name: ingress-nginx
-    - {} # Placeholder: Allows Ingress from anywhere. Refine this.
+          app: api # API to Keycloak internal communication
+    # For external access via Ingress controller
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx # Or your ingress controller's namespace
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx # Or labels for your ingress controller pods
     ports:
     - protocol: TCP
       port: 8080
@@ -66,7 +73,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-minio-access
-  # namespace: lnfoot-app
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -77,10 +84,14 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: api # API needs to talk to Minio API
-    # Assuming Ingress controller will forward traffic to Minio.
-    # TODO: Restrict this to only allow traffic from the Ingress controller pods.
-    - {} # Placeholder: Allows Ingress from anywhere. Refine this.
+          app: api # API to Minio internal communication
+    # For external access via Ingress controller
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
     ports:
     - protocol: TCP
       port: 9000 # Minio API
@@ -91,7 +102,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-api-access
-  # namespace: lnfoot-app
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -99,9 +110,14 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  # Assuming Ingress controller will forward traffic to the API.
-  # TODO: Restrict this to only allow traffic from the Ingress controller pods.
-  - {} # Placeholder: Allows Ingress from anywhere. Refine this.
+  - from:
+    # For external access via Ingress controller
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
     ports:
     - protocol: TCP
       port: 8080
@@ -109,35 +125,31 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-all-egress # Deny all egress traffic by default
-  # namespace: lnfoot-app
+  name: allow-dns-egress
+  namespace: lnfoot-app
 spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns-egress # Allow DNS (port 53) to all pods for name resolution
-  # namespace: lnfoot-app
-spec:
-  podSelector: {} # Apply to all pods
+  podSelector: {} # Apply to all pods in the namespace
   policyTypes:
   - Egress
   egress:
-  - to: # No specific 'to', implies to any IP, typically kube-dns service IP
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system # Or the namespace where your DNS service runs
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns # Standard label for kube-dns pods
     ports:
     - protocol: UDP
       port: 53
-    - protocol: TCP # DNS can also use TCP
+    - protocol: TCP
       port: 53
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-api-external-egress # Allow API to talk to external services
-  # namespace: lnfoot-app
+  name: allow-api-egress
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -145,29 +157,47 @@ spec:
   policyTypes:
   - Egress
   egress:
-  # Allow to NotchPay API
   - to:
-    # This would ideally be a CIDR block for api.notchpay.co if stable and known.
-    # For now, allowing all egress on 443; can be refined.
-    # Example: - ipBlock: { cidr: "x.x.x.x/y" }
+    - podSelector:
+        matchLabels:
+          app: postgres
     ports:
     - protocol: TCP
-      port: 443 # HTTPS to NotchPay
-  # Allow to Keycloak (if Keycloak is external or in a different namespace not covered by pod selectors)
-  # For Keycloak service within the cluster, this might not be needed if pod-to-pod is default allowed
-  # or if Keycloak is in the same namespace and DNS is working.
-  # However, if Keycloak is accessed via an external URL by the API:
-  - to: {} # Placeholder for external Keycloak if needed, or remove if KC is internal
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: minio
     ports:
     - protocol: TCP
-      port: 80 # Or 443 if HTTPS to Keycloak
-      # port: 8080 # If API talks to Keycloak service directly on its port
+      port: 9000
+  - to:
+    - podSelector:
+        matchLabels:
+          app: keycloak
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    # For NotchPay and other external services.
+    # WARNING: This allows egress to ANY IP on port 443.
+    # For production, it's CRITICAL to restrict this further using:
+    # 1. `ipBlock` with specific CIDRs for external services if their IPs are stable.
+    #    Example:
+    #    - ipBlock:
+    #        cidr: "1.2.3.4/32" # Replace with actual NotchPay IP/CIDR
+    # 2. FQDN policies if your CNI supports them (e.g., Cilium, Calico).
+    # 3. An egress gateway that can filter traffic based on FQDN.
+    # If using ipBlock, ensure `except` clauses are used to avoid matching internal ranges.
+    ports:
+    - protocol: TCP
+      port: 443 # HTTPS
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-keycloak-postgres-egress
-  # namespace: lnfoot-app
+  name: allow-keycloak-postgres-egress # Keycloak needs to talk to Postgres
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -176,7 +206,7 @@ spec:
   - Egress
   egress:
   - to:
-    - podSelector: # Allow to Postgres
+    - podSelector:
         matchLabels:
           app: postgres
     ports:
@@ -186,8 +216,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-minio-itself-egress # Minio might need to talk to itself (localhost) during startup/mc commands
-  # namespace: lnfoot-app
+  name: allow-minio-itself-egress # Minio entrypoint script uses mc against localhost
+  namespace: lnfoot-app
 spec:
   podSelector:
     matchLabels:
@@ -195,28 +225,23 @@ spec:
   policyTypes:
   - Egress
   egress:
-  - to:
-    - podSelector: # Allow egress to itself
+  - to: # Allows Minio to talk to itself (its own pod)
+    - podSelector:
         matchLabels:
           app: minio
     ports:
     - protocol: TCP
-      port: 9000 # API
+      port: 9000 # Minio API
     - protocol: TCP
-      port: 9001 # Console
-# Note on Ingress Controller Access:
-# The 'from: {}' rules in allow-keycloak-access, allow-minio-access, and allow-api-access
-# are overly permissive for Ingress traffic. These should be updated to specifically
-# allow traffic ONLY from the Ingress controller pods (e.g., using namespaceSelector
-# and podSelector targeting the Ingress controller).
-
-# Note on Egress:
-# A 'default-deny-all-egress' is added. Specific egress rules are then needed.
-# - DNS is allowed for all.
-# - API is allowed to talk to external services (e.g., NotchPay on port 443).
-# - Keycloak is allowed to talk to Postgres.
-# - Minio is allowed to talk to itself (for entrypoint script operations).
-# Egress to other cluster services (like Postgres from API) is implicitly handled if they are in the same namespace
-# and no specific egress deny would block it. If services are in different namespaces, specific
-# 'to' clauses with namespaceSelectors might be needed in egress policies.
-# The current setup assumes services are in the same namespace for podSelector to work in egress.
+      port: 9001 # Minio Console
+# Notes:
+# - All policies are now namespaced to 'lnfoot-app'.
+# - Default deny for all ingress and egress is in place.
+# - Ingress from the Ingress controller (assumed to be nginx in 'ingress-nginx' namespace)
+#   is now explicitly allowed for Keycloak, Minio, and API services.
+# - Egress for the API to other internal services (Postgres, Minio, Keycloak) and
+#   to external services (NotchPay on port 443) is defined in 'allow-api-egress'.
+#   The external egress rule for port 443 is broad and needs further restriction in production.
+# - DNS egress is configured to allow pods to talk to 'kube-dns' in 'kube-system'.
+# - Keycloak can talk to Postgres.
+# - Minio can talk to itself (needed for its entrypoint script).

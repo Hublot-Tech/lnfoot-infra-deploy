@@ -2,15 +2,19 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: api-secret
-data:
-  MINIO_API_URL: aHR0cDovL21pbmlvLXN2Yzo5MDAw
-  DB_HOST: cG9zdGdyZXMtc3Zj
-  DB_PORT: NTQzMg==
-  KC_ISSUER_URI: aHR0cDovL2tleWNsb2FrLXN2Yzo4MDgwL3JlYWxtcy9sbi1mb290LTAx
-  SERVER_URL: aHR0cDovL2xvY2FsaG9zdDo4MDgw
-  NOTCHPAY_API_BASE_URL: aHR0cHM6Ly9hcGkubm90Y2hwYXkuY28=
-  NOTCHPAY_API_KEY: cGtfdGVzdF9wbGFjZWhvbGRlcg==
-  NOTCHPAY_WEBHOOK_SECRET: HNkX3Rlc3RfcGxhY2Vob2xkZXI= # Corrected Base64 for hsk_test_placeholder
+# data:
+#   MINIO_API_URL: <base64_encoded_value> # e.g., aHR0cDovL21pbmlvLXN2Yzo5MDAw
+#   DB_HOST: <base64_encoded_value> # e.g., cG9zdGdyZXMtc3Zj
+#   DB_PORT: <base64_encoded_value> # e.g., NTQzMg==
+#   KC_ISSUER_URI: <base64_encoded_value> # e.g., aHR0cDovL2tleWNsb2FrLXN2Yzo4MDgwL3JlYWxtcy9sbi1mb290LTAx
+#   SERVER_URL: <base64_encoded_value> # e.g., aHR0cDovL2xuZm9vdC1hcGkuaHVibG90cy5jbw== (use actual Ingress host)
+#   NOTCHPAY_API_BASE_URL: <base64_encoded_value> # e.g., aHR0cHM6Ly9hcGkubm90Y2hwYXkuY28=
+#   NOTCHPAY_API_KEY: <base64_encoded_value>
+#   NOTCHPAY_WEBHOOK_SECRET: <base64_encoded_value>
+# Note: This Secret should be created manually in the cluster or managed by an external secrets operator.
+# Expected keys: MINIO_API_URL, DB_HOST, DB_PORT, KC_ISSUER_URI, SERVER_URL, NOTCHPAY_API_BASE_URL, NOTCHPAY_API_KEY, NOTCHPAY_WEBHOOK_SECRET.
+# The API deployment also sources MINIO_ACCESS_KEY, MINIO_SECRET_KEY from 'minio-secret' and
+# DB_NAME, DB_USERNAME, DB_PASSWORD from 'postgres-secret'.
 ---
 apiVersion: v1
 kind: Service
@@ -30,18 +34,54 @@ kind: Deployment
 metadata:
   name: api-deployment
 spec:
-  replicas: 1
+  replicas: 2 # Increased replica count
   selector:
     matchLabels:
       app: api
+  strategy: # Added RollingUpdate strategy
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   template:
     metadata:
       labels:
         app: api
     spec:
+      affinity: # Added podAntiAffinity
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - api
+              topologyKey: "kubernetes.io/hostname"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1002
+        runAsGroup: 1002
+        fsGroup: 1002 # fsGroup might not be strictly necessary if no volumes are group-writable by this GID
+        # seccompProfile: { type: RuntimeDefault }
       containers:
         - name: api
           image: ghcr.io/hublot-tech/ln-foot-api:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true # Assuming API is stateless or writes to /tmp or specific volume mounts
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
           ports:
             - containerPort: 8080
           env:
@@ -110,19 +150,27 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: NOTCHPAY_WEBHOOK_SECRET
-          livenessProbe:
+          # Note: /api/categories might not be the ideal health check endpoint.
+          # A dedicated /health or /livez /readyz endpoint should be preferred.
+          startupProbe: # Added startupProbe
+            httpGet:
+              path: /api/categories # Or a more specific startup endpoint if available
+              port: 8080
+            failureThreshold: 30 # Total time = failureThreshold * periodSeconds (e.g., 30 * 10s = 300s = 5 minutes)
+            periodSeconds: 10
+          livenessProbe: # Adjusted livenessProbe
             httpGet:
               path: /api/categories
               port: 8080
-            initialDelaySeconds: 60
+            initialDelaySeconds: 60 # Kept initialDelaySeconds as startupProbe handles initial startup
             periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 5 # Renamed from 'retries'
-          readinessProbe:
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe: # Adjusted readinessProbe
             httpGet:
               path: /api/categories
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 20 # Lowered initialDelay as startupProbe handles initial startup
             periodSeconds: 15
-            timeoutSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
