@@ -57,6 +57,7 @@ services:
       APP_CLIENT_SECRET_KEY: ${MINIO_SECRET_KEY}
     volumes:
       - minio-data:/data
+      - minio-config:/root/.minio
       - ./minio/entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
       # Mount the policy file from your host into the container
       - ./minio/app-client-policy.json:/app_client_policy.json
@@ -88,6 +89,7 @@ services:
 volumes:
   keycloak-db:
   minio-data:
+  minio-config:
 
 networks:
   lnfoot:
