@@ -18,10 +18,9 @@ services:
     restart: unless-stopped
     volumes:
       - keycloak-db:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      - ./postgres-init/init-app-db.sh:/docker-entrypoint-initdb.d/init-app-db.sh
+    env_file:
+      - .env
     networks:
       - lnfoot
 
@@ -79,12 +78,6 @@ services:
       - '443:443'
     networks:
       - lnfoot
-    healthcheck:
-      test: ['CMD', 'curl', '-sSL', 'http://localhost:2019/metrics']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
 volumes:
   keycloak-db:
