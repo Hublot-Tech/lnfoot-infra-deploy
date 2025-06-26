@@ -22,14 +22,17 @@ until curl -sS -f http://localhost:9000/minio/health/live; do
 done
 echo "MinIO server is healthy and ready for configuration."
 
-# --- Modified Section ---
+# --- NEW ADDITION: Set up the 'local' alias with admin credentials ---
+MINIO_ALIAS="local"
+echo "Setting up MinIO alias '${MINIO_ALIAS}' with admin credentials..."
+# Ensure MINIO_ROOT_USER and MINIO_ROOT_PASSWORD are available as environment variables
+until mc alias set "${MINIO_ALIAS}" http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do
+  echo "MinIO alias '${MINIO_ALIAS}' not set, retrying..."
+  sleep 2
+done
+echo "MinIO alias '${MINIO_ALIAS}' set successfully."
 
-# Use the 'local' alias for all subsequent 'mc' commands.
-# Ensure 'local' alias is correctly configured with MINIO_ROOT_USER and MINIO_ROOT_PASSWORD
-# by your Dockerfile or entrypoint before this script runs.
-MINIO_ALIAS="local" # Use the existing 'local' alias
-
-echo "Using MinIO alias '${MINIO_ALIAS}' for configuration."
+# --- Rest of your script (unchanged from your last update) ---
 
 # 4. Create the custom policy for the app client (read/write)
 echo "Creating custom policy '${APP_CLIENT_POLICY_NAME}' for app client..."
@@ -51,7 +54,7 @@ fi
 
 # Attach the custom global read/write policy to the new user
 echo "Attaching policy '${APP_CLIENT_POLICY_NAME}' to user '${APP_CLIENT_ACCESS_KEY}'..."
-mc admin policy attach "${MINIO_ALIAS}" "${APP_CLIENT_POLICY_NAME}" --user "${APP_CLIENT_ACCESS_KEY}" || true # Use || true to prevent script from stopping if already attached and cmd errors
+mc admin policy attach "${MINIO_ALIAS}" "${APP_CLIENT_POLICY_NAME}" --user "${APP_CLIENT_ACCESS_KEY}" || true
 echo "Policy '${APP_CLIENT_POLICY_NAME}' attached to user '${APP_CLIENT_ACCESS_KEY}' (or already was)."
 
 
