@@ -24,14 +24,22 @@ echo "Ensuring database '$DB_NAME' and user '$DB_USERNAME' exist..."
 # and execute the SQL commands.
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "postgres" <<-EOSQL
     -- Create a new database for your Spring Boot application if it doesn't already exist
-    CREATE DATABASE "$DB_NAME" IF NOT EXISTS;
+    -- This uses a DO block for robust compatibility with conditional logic
+    DO
+    \$do\$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME') THEN
+            CREATE DATABASE "$DB_NAME";
+        END IF;
+    END
+    \$do\$;
 
     -- Create a new user for your Spring Boot application if it doesn't already exist
     DO
     \$do\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USERNAME') THEN
-            CREATE USER "$DB_USERNAME" WITH PASSWORD '$API_DB_PASSWORD';
+            CREATE USER "$DB_USERNAME" WITH PASSWORD '$DB_PASSWORD';
         END IF;
     END
     \$do\$;
@@ -43,13 +51,22 @@ EOSQL
 echo "Configuring schema privileges for '$DB_NAME'..."
 
 # Connect to the newly created database and grant schema privileges
-# Note: Ensure POSTGRES_USER is correctly spelled here (was POSTES_USER in original)
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
-    GRANT ALL PRIVILEGES ON SCHEMA public TO "$DB_USERNAME";
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO "$DB_USERNAME";
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO "$DB_USERNAME";
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO "$DB_USERNAME";
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TYPES TO "$DB_USERNAME";
+    GRANT ALL PRIVILEGES ON SCHEMA lnfoot_api TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_api GRANT ALL PRIVILEGES ON TABLES TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_api GRANT ALL PRIVILEGES ON SEQUENCES TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_api GRANT ALL PRIVILEGES ON FUNCTIONS TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_api GRANT ALL PRIVILEGES ON TYPES TO "$DB_USERNAME";
+EOSQL
+
+
+# Connect to the newly created database and grant schema privileges
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$DB_NAME" <<-EOSQL
+    GRANT ALL PRIVILEGES ON SCHEMA lnfoot_web TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_web GRANT ALL PRIVILEGES ON TABLES TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_web GRANT ALL PRIVILEGES ON SEQUENCES TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_web GRANT ALL PRIVILEGES ON FUNCTIONS TO "$DB_USERNAME";
+    ALTER DEFAULT PRIVILEGES IN SCHEMA lnfoot_web GRANT ALL PRIVILEGES ON TYPES TO "$DB_USERNAME";
 EOSQL
 
 echo "Database and user setup (or update) complete for '$DB_NAME'."
