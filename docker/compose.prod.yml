@@ -39,8 +39,6 @@ services:
 
   omnidb:
     image: omnidbteam/omnidb
-    ports:
-      - '8000:8000' # OmniDB defaults to port 8000
     volumes:
       - omnidb_data:/opt/omnidb_data # For persisting configurations and connection info
     depends_on:
