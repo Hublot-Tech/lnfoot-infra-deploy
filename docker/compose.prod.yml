@@ -1,7 +1,11 @@
 services:
   api:
-    image: ghcr.io/hublot-tech/ln-foot-api:latest
+    image: ghcr.io/luvnationdev/ln-foot-api:latest
     restart: unless-stopped
+    depends_on:
+      - minio
+      - postgres
+      - keycloak
     env_file:
       - .env
     networks:
@@ -40,8 +44,7 @@ services:
     volumes:
       - omnidb_data:/opt/omnidb_data # For persisting configurations and connection info
     depends_on:
-      db:
-        condition: service_healthy
+      - postgres
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
