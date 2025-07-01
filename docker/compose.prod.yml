@@ -19,19 +19,29 @@ services:
     volumes:
       - keycloak-db:/var/lib/postgresql/data
       - ./postgres-init/init-app-db.sh:/docker-entrypoint-initdb.d/init-app-db.sh
-    command: ["/bin/bash", "/docker-entrypoint-initdb.d/init-app-db.sh"]
+    command: ['/bin/bash', '/docker-entrypoint-initdb.d/init-app-db.sh']
     environment:
       # Spring boot server db
       DB_NAME: ${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      
+
       # Default db (keycloak)
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - lnfoot
+
+  omnidb:
+    image: omnidbteam/omnidb
+    ports:
+      - '8000:8000' # OmniDB defaults to port 8000
+    volumes:
+      - omnidb_data:/opt/omnidb_data # For persisting configurations and connection info
+    depends_on:
+      db:
+        condition: service_healthy
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
