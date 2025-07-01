@@ -102,6 +102,7 @@ volumes:
   keycloak-db:
   minio-data:
   minio-config:
+  omnidb_data:
 
 networks:
   lnfoot:
