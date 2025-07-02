@@ -43,6 +43,9 @@ services:
       - omnidb_data:/opt/omnidb_data # For persisting configurations and connection info
     depends_on:
       - postgres
+    networks:
+      - lnfoot
+
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
