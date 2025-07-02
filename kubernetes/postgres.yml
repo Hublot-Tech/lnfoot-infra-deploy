@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+# data:
+#   POSTGRES_DB: <base64_encoded_value>
+#   POSTGRES_USER: <base64_encoded_value>
+#   POSTGRES_PASSWORD: <base64_encoded_value>
+# Note: This Secret should be created manually in the cluster or managed by an external secrets operator (e.g., External Secrets Operator, Sealed Secrets, Vault).
+# The Deployment expects the following keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  # namespace: lnfoot-app # If namespace is applied
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi # Increased size
+  storageClassName: standard # Added storage class
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-svc
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999 # Standard UID for postgres user in official images
+        runAsGroup: 999 # Standard GID for postgres user
+        fsGroup: 999    # fsGroup to own the volume
+        # seccompProfile: { type: RuntimeDefault } # Recommended for GKE & newer K8s
+      containers:
+        - name: postgres
+          image: postgres:alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            # readOnlyRootFilesystem: true # Postgres needs to write to various paths not easily covered by volumes
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # Note: For HA, PostgreSQL typically requires an Operator or a StatefulSet with replication (e.g., Patroni, Stolon).
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10 # Give it a bit of time before starting checks
+            periodSeconds: 10
+            failureThreshold: 18  # 18 * 10s = 180s = 3 minutes
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3 # Consider standard failure threshold
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3 # Consider standard failure threshold
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-storage
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lnfoot-app # Name of the Argo CD Application
+  namespace: argocd # Namespace where Argo CD is running
+  # finalizers:
+  #   - resources-finalizer.argocd.argoproj.io # Optional: Ensures resources are deleted before the app
+spec:
+  project: default # Argo CD project name
+
+  source:
+    repoURL: https://github.com/Hublot-Tech/lnfoot-infra-deploy.git # Replace with your actual Git repository URL
+    path: kubernetes # Path to the directory containing Kubernetes manifests
+    targetRevision: HEAD # Or 'main', or a specific Git tag/commit
+
+  destination:
+    server: https://kubernetes.default.svc # Target Kubernetes API server URL
+    namespace: lnfoot-app # Target namespace for application deployment
+
+  syncPolicy:
+    automated:
+      prune: true # Automatically delete resources that are no longer defined in Git
+      selfHeal: true # Automatically sync if the live state deviates from Git
+    syncOptions:
+      - CreateNamespace=true # Automatically create the target namespace if it doesn't exist
+      # - PruneLast=true # Optional: Ensures that resources are pruned last
+      # - ApplyOutOfSyncOnly=true # Optional: Only apply changes if the app is OutOfSync
