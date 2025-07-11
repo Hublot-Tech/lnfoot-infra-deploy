@@ -19,6 +19,6 @@ s3.ln-foot.com {
 }
 
 # Database Explorer
-omnidb.ln-foot.com {
-  reverse_proxy omnidb:8000
+drizzle.ln-foot.com {
+  reverse_proxy https://local.drizzle.studio
 }
