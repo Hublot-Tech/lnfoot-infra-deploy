@@ -40,13 +40,14 @@ services:
     image: ghcr.io/marcjazz/drizzle-studio:latest
     container_name: drizzle-studio
     ports:
-      - 4983:4983
+      - '4983:4983'
     environment:
       - DIALECT=postgresql
       - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
     depends_on:
       - postgres
-
+    networks:
+      - lnfoot
 
   keycloak:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
