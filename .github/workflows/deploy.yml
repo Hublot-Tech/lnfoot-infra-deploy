@@ -1,3 +1,5 @@
+name: Deploy Pushed Images to VPS 
+
 on:
   push:
     branches:
