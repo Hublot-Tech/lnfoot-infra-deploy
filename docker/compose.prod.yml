@@ -37,7 +37,7 @@ services:
       - lnfoot
 
   drizzle-studio:
-    image: ghcr.io/marcjazz/drizzle-studio:latest
+    image: ghcr.io/marcjazz/drizzle-studio:1.0.0
     container_name: drizzle-studio
     ports:
       - '4983:4983'
