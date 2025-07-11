@@ -37,14 +37,16 @@ services:
     networks:
       - lnfoot
 
-  omnidb:
-    image: omnidbteam/omnidb
-    volumes:
-      - omnidb_data:/opt/omnidb_data # For persisting configurations and connection info
+  drizzle-studio:
+    image: ghcr.io/marcjazz/drizzle-studio:latest
+    container_name: drizzle-studio
+    ports:
+      - 4983:4983
+    environment:
+      - DIALECT=postgresql
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
     depends_on:
       - postgres
-    networks:
-      - lnfoot
 
 
   keycloak:
