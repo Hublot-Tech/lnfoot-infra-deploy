@@ -37,16 +37,14 @@ services:
     networks:
       - lnfoot
 
-  drizzle-studio:
-    image: ghcr.io/marcjazz/drizzle-studio:latest
-    container_name: drizzle-studio
-    ports:
-      - 4983:4983
+  adminer:
+    image: wfeldt/adminer:latest
+    container_name: adminer
     environment:
-      - DIALECT=postgresql
-      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
-    depends_on:
-      - postgres
+      - ADMINER_PLUGINS=tables-filter tinymce edit-calendar login-servers dump-date autoincrement
+    volumes:
+      - ./adminer/theme/adminer-dark.css:/var/www/html/adminer.css
+    restart: unless-stopped
 
 
   keycloak:

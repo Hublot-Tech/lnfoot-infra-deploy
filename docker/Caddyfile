@@ -18,7 +18,12 @@ s3.ln-foot.com {
   reverse_proxy minio:9000
 }
 
+# VPS Cockpit
+cokpit.ln-foot.com {
+  reverse_proxy host.docker.internal:9090
+}
+
 # Database Explorer
-drizzle.ln-foot.com {
-  reverse_proxy https://local.drizzle.studio
+adminer.ln-foot.com {
+  reverse_proxy adminer:8080
 }
