@@ -19,7 +19,7 @@ s3.ln-foot.com {
 }
 
 # VPS Cockpit
-cokpit.ln-foot.com {
+server.ln-foot.com {
   reverse_proxy host.docker.internal:9090
 }
 

@@ -22,18 +22,22 @@ until curl -sS -f http://localhost:9000/minio/health/live; do
 done
 echo "MinIO server is healthy and ready for configuration."
 
-# 1. Wait for MinIO alias to be successfully set
-echo "Waiting for MinIO alias to be set..."
-until mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
-    echo "MinIO alias not set, retrying..."
-    sleep 2
+# --- NEW ADDITION: Set up the 'local' alias with admin credentials ---
+MINIO_ALIAS="local"
+echo "Setting up MinIO alias '${MINIO_ALIAS}' with admin credentials..."
+# Ensure MINIO_ROOT_USER and MINIO_ROOT_PASSWORD are available as environment variables
+until mc alias set "${MINIO_ALIAS}" http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do
+  echo "MinIO alias '${MINIO_ALIAS}' not set, retrying..."
+  sleep 2
 done
-echo "MinIO alias 'myminio' set."
+echo "MinIO alias '${MINIO_ALIAS}' set successfully."
+
+# --- Rest of your script (unchanged from your last update) ---
 
 # 4. Create the custom policy for the app client (read/write)
 echo "Creating custom policy '${APP_CLIENT_POLICY_NAME}' for app client..."
-if ! mc admin policy info myminio "${APP_CLIENT_POLICY_NAME}" >/dev/null 2>&1; then
-    mc admin policy create myminio "${APP_CLIENT_POLICY_NAME}" /app_client_policy.json
+if ! mc admin policy info "${MINIO_ALIAS}" "${APP_CLIENT_POLICY_NAME}" >/dev/null 2>&1; then
+    mc admin policy create "${MINIO_ALIAS}" "${APP_CLIENT_POLICY_NAME}" /app_client_policy.json
     echo "Policy '${APP_CLIENT_POLICY_NAME}' added."
 else
     echo "Policy '${APP_CLIENT_POLICY_NAME}' already exists."
@@ -41,8 +45,8 @@ fi
 
 # 5. Create the app client user if it doesn't exist
 echo "Creating user '${APP_CLIENT_ACCESS_KEY}' if it doesn't exist..."
-if ! mc admin user info myminio "${APP_CLIENT_ACCESS_KEY}" >/dev/null 2>&1; then
-    mc admin user add myminio "${APP_CLIENT_ACCESS_KEY}" "${APP_CLIENT_SECRET_KEY}"
+if ! mc admin user info "${MINIO_ALIAS}" "${APP_CLIENT_ACCESS_KEY}" >/dev/null 2>&1; then
+    mc admin user add "${MINIO_ALIAS}" "${APP_CLIENT_ACCESS_KEY}" "${APP_CLIENT_SECRET_KEY}"
     echo "User '${APP_CLIENT_ACCESS_KEY}' created."
 else
     echo "User '${APP_CLIENT_ACCESS_KEY}' already exists."
@@ -50,8 +54,7 @@ fi
 
 # Attach the custom global read/write policy to the new user
 echo "Attaching policy '${APP_CLIENT_POLICY_NAME}' to user '${APP_CLIENT_ACCESS_KEY}'..."
-# Removed grep check here. mc admin policy attach might error if already attached, but usually does not halt.
-mc admin policy attach myminio "${APP_CLIENT_POLICY_NAME}" --user "${APP_CLIENT_ACCESS_KEY}" || true # Use || true to prevent script from stopping if already attached and cmd errors
+mc admin policy attach "${MINIO_ALIAS}" "${APP_CLIENT_POLICY_NAME}" --user "${APP_CLIENT_ACCESS_KEY}" || true
 echo "Policy '${APP_CLIENT_POLICY_NAME}' attached to user '${APP_CLIENT_ACCESS_KEY}' (or already was)."
 
 
