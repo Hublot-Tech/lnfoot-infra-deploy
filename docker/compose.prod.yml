@@ -30,7 +30,6 @@ services:
 
   adminer:
     image: adminer
-    container_name: adminer
     environment:
       - ADMINER_PLUGINS=tables-filter tinymce edit-calendar dump-date
     volumes:
@@ -43,10 +42,6 @@ services:
     image: ghcr.io/marcjazz/keycloak-auth-theme:latest
     env_file:
       - keycloak/.env
-    environment:
-      KC_DB_URL_DATABASE: ${POSTGRES_DB}
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - lnfoot
     command:
@@ -95,10 +90,9 @@ services:
       - lnfoot
 
 volumes:
-  prostgres-db:
+  postgres-db:
   minio-data:
   minio-config:
-  omnidb_data:
 
 networks:
   lnfoot:
