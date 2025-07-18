@@ -37,7 +37,7 @@ services:
       - lnfoot
 
   adminer:
-    image: wfeldt/adminer:latest
+    image: adminer
     container_name: adminer
     environment:
       - ADMINER_PLUGINS=tables-filter tinymce edit-calendar login-servers dump-date autoincrement
